@@ -92,6 +92,13 @@
       margin-top: 14px;
     }
 
+    .mode-selector {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
     button {
       border: 1px solid var(--line);
       border-radius: var(--radius);
@@ -228,6 +235,10 @@
   <main>
     <section class="calculator" aria-label="계산기">
       <h1>계산기 코덱스</h1>
+      <div class="mode-selector" role="group" aria-label="계산 모드">
+        <label><input type="radio" name="mode" value="normal" checked> 일반 계산</label>
+        <label><input type="radio" name="mode" value="chain"> 연결 계산</label>
+      </div>
       <div class="display" aria-live="polite">
         <div class="expression" id="expression"></div>
         <div class="result" id="result">0</div>
@@ -279,7 +290,15 @@
 
     let expression = "";
     let currentResult = "0";
+    let calculated = false;
+    let chainMode = false;
     let history = loadHistory();
+
+    document.querySelectorAll('input[name="mode"]').forEach((input) => {
+      input.addEventListener("change", () => {
+        chainMode = input.value === "chain";
+      });
+    });
 
     function updateDisplay() {
       expressionEl.textContent = expression;
@@ -287,18 +306,28 @@
     }
 
     function appendValue(value) {
+      if (chainMode && calculated) {
+        if (["+", "-", "×", "÷"].includes(value)) {
+          expression = `(${expression})`;
+        } else {
+          expression = "";
+        }
+      }
+      calculated = false;
       expression += value;
       currentResult = "0";
       updateDisplay();
     }
 
     function clearAll() {
+      calculated = false;
       expression = "";
       currentResult = "0";
       updateDisplay();
     }
 
     function backspace() {
+      calculated = false;
       expression = expression.slice(0, -1);
       currentResult = "0";
       updateDisplay();
@@ -313,8 +342,10 @@
         const value = new Parser(expression).parse();
         const formatted = formatNumber(value);
         currentResult = formatted;
+        calculated = true;
         addHistory(expression, formatted);
       } catch (error) {
+        calculated = false;
         currentResult = error.message || "계산할 수 없습니다";
       }
 
@@ -360,6 +391,7 @@
         button.addEventListener("click", () => {
           expression = item.formula;
           currentResult = item.answer;
+          calculated = true;
           updateDisplay();
         });
         li.appendChild(button);
