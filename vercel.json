@@ -4,7 +4,7 @@
   "rewrites": [
     {
       "source": "/",
-      "destination": "/계산기_코덱스.html"
+      "destination": "/02_1page/index.html"
     }
   ]
 }

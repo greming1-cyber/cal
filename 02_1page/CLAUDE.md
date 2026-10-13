@@ -18,5 +18,5 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 배포 및 커밋
 
-- 배포는 Vercel 정적 호스팅이며, 설정은 저장소 루트의 `../vercel.json`에 있다. 현재 루트 경로(`/`)가 `/계산기_코덱스.html`로 rewrite 되어 있으므로, 이 홈페이지를 사이트 루트로 노출하려면 `vercel.json`의 rewrite를 수정해야 한다 (기존 계산기 경로를 깨지 않도록 주의).
+- 배포는 Vercel 정적 호스팅이며, 설정은 저장소 루트의 `../vercel.json`에 있다. 루트 경로(`/`)는 `/02_1page/index.html`로 rewrite 되어 이 홈페이지가 사이트 첫 화면이다. rewrite라서 페이지 URL은 `/`이므로, 이미지 등 상대 경로 리소스를 추가하면 `/02_1page/...` 절대 경로로 참조해야 한다. 계산기 페이지는 `/계산기_코덱스.html` 등 파일 경로로 계속 접근 가능하다.
 - 저장소는 `core.hooksPath=.githooks`로 설정되어 있고, `.githooks/post-commit` 훅이 **커밋할 때마다 자동으로 `git push`** 한다. 즉 커밋 = 원격 공개이므로, 커밋 전에 내용을 확인한다.
