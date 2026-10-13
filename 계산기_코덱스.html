@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>계산기 코덱스</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f7fb;
+      --panel: #ffffff;
+      --panel-soft: #eef3f8;
+      --text: #17202a;
+      --muted: #667085;
+      --line: #d8e1ec;
+      --accent: #116d6e;
+      --accent-strong: #0b5253;
+      --danger: #c0392b;
+      --shadow: 0 18px 48px rgba(21, 36, 50, 0.14);
+      --radius: 8px;
+      font-family: "Segoe UI", "Malgun Gothic", Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    main {
+      width: min(1040px, 100%);
+      display: grid;
+      grid-template-columns: minmax(320px, 460px) minmax(260px, 1fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .calculator,
+    .history {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .calculator {
+      padding: 18px;
+    }
+
+    .display {
+      min-height: 126px;
+      background: #18232e;
+      color: #f8fbff;
+      border-radius: var(--radius);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+    }
+
+    .expression {
+      min-height: 32px;
+      color: #b9c8d7;
+      font-size: clamp(1rem, 2.8vw, 1.35rem);
+      line-height: 1.35;
+      word-break: break-all;
+    }
+
+    .result {
+      min-height: 48px;
+      color: #ffffff;
+      font-size: clamp(2rem, 8vw, 3.4rem);
+      line-height: 1;
+      text-align: right;
+      word-break: break-all;
+    }
+
+    .keys {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel-soft);
+      color: var(--text);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+      user-select: none;
+    }
+
+    button:hover {
+      background: #e3ebf4;
+      border-color: #bfd0df;
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    .key {
+      min-height: 58px;
+      font-size: 1.2rem;
+    }
+
+    .operator {
+      background: #dcefeb;
+      color: var(--accent-strong);
+    }
+
+    .danger {
+      background: #fdecea;
+      color: var(--danger);
+    }
+
+    .equal {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #ffffff;
+    }
+
+    .equal:hover {
+      background: var(--accent-strong);
+      border-color: var(--accent-strong);
+    }
+
+    .history {
+      padding: 18px;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    h1,
+    h2 {
+      margin: 0;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      font-size: 1.3rem;
+      margin-bottom: 14px;
+    }
+
+    h2 {
+      font-size: 1rem;
+    }
+
+    .clear-history {
+      padding: 8px 11px;
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+
+    .history-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      overflow: auto;
+      max-height: 492px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .history-item {
+      width: 100%;
+      text-align: left;
+      padding: 12px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      font-weight: 600;
+      line-height: 1.35;
+      word-break: break-all;
+    }
+
+    .empty {
+      color: var(--muted);
+      padding: 18px 4px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 760px) {
+      body {
+        align-items: flex-start;
+        padding: 14px;
+      }
+
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      .key {
+        min-height: 54px;
+      }
+
+      .history-list {
+        max-height: 260px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="calculator" aria-label="계산기">
+      <h1>계산기 코덱스</h1>
+      <div class="display" aria-live="polite">
+        <div class="expression" id="expression"></div>
+        <div class="result" id="result">0</div>
+      </div>
+      <div class="keys" id="keys">
+        <button class="key danger" data-action="clear">C</button>
+        <button class="key" data-action="backspace">←</button>
+        <button class="key operator" data-value="(">(</button>
+        <button class="key operator" data-value=")">)</button>
+
+        <button class="key" data-value="7">7</button>
+        <button class="key" data-value="8">8</button>
+        <button class="key" data-value="9">9</button>
+        <button class="key operator" data-value="÷">÷</button>
+
+        <button class="key" data-value="4">4</button>
+        <button class="key" data-value="5">5</button>
+        <button class="key" data-value="6">6</button>
+        <button class="key operator" data-value="×">×</button>
+
+        <button class="key" data-value="1">1</button>
+        <button class="key" data-value="2">2</button>
+        <button class="key" data-value="3">3</button>
+        <button class="key operator" data-value="-">−</button>
+
+        <button class="key" data-value="0">0</button>
+        <button class="key" data-value=".">.</button>
+        <button class="key equal" data-action="calculate">=</button>
+        <button class="key operator" data-value="+">+</button>
+      </div>
+    </section>
+
+    <aside class="history" aria-label="계산 기록">
+      <div class="history-header">
+        <h2>계산 기록</h2>
+        <button class="clear-history" id="clearHistory" type="button">기록 지우기</button>
+      </div>
+      <ul class="history-list" id="historyList"></ul>
+    </aside>
+  </main>
+
+  <script>
+    const expressionEl = document.getElementById("expression");
+    const resultEl = document.getElementById("result");
+    const keysEl = document.getElementById("keys");
+    const historyListEl = document.getElementById("historyList");
+    const clearHistoryEl = document.getElementById("clearHistory");
+    const historyKey = "codexCalculatorHistory";
+
+    let expression = "";
+    let currentResult = "0";
+    let history = loadHistory();
+
+    function updateDisplay() {
+      expressionEl.textContent = expression;
+      resultEl.textContent = currentResult;
+    }
+
+    function appendValue(value) {
+      expression += value;
+      currentResult = "0";
+      updateDisplay();
+    }
+
+    function clearAll() {
+      expression = "";
+      currentResult = "0";
+      updateDisplay();
+    }
+
+    function backspace() {
+      expression = expression.slice(0, -1);
+      currentResult = "0";
+      updateDisplay();
+    }
+
+    function calculate() {
+      if (!expression.trim()) {
+        return;
+      }
+
+      try {
+        const value = new Parser(expression).parse();
+        const formatted = formatNumber(value);
+        currentResult = formatted;
+        addHistory(expression, formatted);
+      } catch (error) {
+        currentResult = error.message || "계산할 수 없습니다";
+      }
+
+      updateDisplay();
+    }
+
+    function loadHistory() {
+      try {
+        return JSON.parse(localStorage.getItem(historyKey)) || [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveHistory() {
+      localStorage.setItem(historyKey, JSON.stringify(history));
+    }
+
+    function addHistory(formula, answer) {
+      history.unshift({ formula, answer });
+      history = history.slice(0, 50);
+      saveHistory();
+      renderHistory();
+    }
+
+    function renderHistory() {
+      historyListEl.innerHTML = "";
+
+      if (history.length === 0) {
+        const empty = document.createElement("li");
+        empty.className = "empty";
+        empty.textContent = "아직 계산 기록이 없습니다.";
+        historyListEl.appendChild(empty);
+        return;
+      }
+
+      history.forEach((item) => {
+        const li = document.createElement("li");
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "history-item";
+        button.textContent = `${item.formula} = ${item.answer}`;
+        button.addEventListener("click", () => {
+          expression = item.formula;
+          currentResult = item.answer;
+          updateDisplay();
+        });
+        li.appendChild(button);
+        historyListEl.appendChild(li);
+      });
+    }
+
+    function formatNumber(value) {
+      if (!Number.isFinite(value)) {
+        throw new Error("계산할 수 없습니다");
+      }
+
+      const rounded = Math.round((value + Number.EPSILON) * 1e12) / 1e12;
+      return Number(rounded.toPrecision(12)).toString();
+    }
+
+    class Parser {
+      constructor(input) {
+        this.input = input.replace(/\s/g, "").replace(/−/g, "-").replace(/×/g, "*").replace(/÷/g, "/");
+        this.index = 0;
+      }
+
+      parse() {
+        const value = this.parseExpression();
+        if (this.index < this.input.length) {
+          throw new Error("수식을 확인해 주세요");
+        }
+        return value;
+      }
+
+      parseExpression() {
+        let value = this.parseTerm();
+
+        while (this.match("+") || this.match("-")) {
+          const operator = this.input[this.index - 1];
+          const right = this.parseTerm();
+          value = operator === "+" ? value + right : value - right;
+        }
+
+        return value;
+      }
+
+      parseTerm() {
+        let value = this.parseFactor();
+
+        while (this.match("*") || this.match("/")) {
+          const operator = this.input[this.index - 1];
+          const right = this.parseFactor();
+
+          if (operator === "/" && right === 0) {
+            throw new Error("0으로 나눌 수 없습니다");
+          }
+
+          value = operator === "*" ? value * right : value / right;
+        }
+
+        return value;
+      }
+
+      parseFactor() {
+        if (this.match("+")) {
+          return this.parseFactor();
+        }
+
+        if (this.match("-")) {
+          return -this.parseFactor();
+        }
+
+        if (this.match("(")) {
+          const value = this.parseExpression();
+          if (!this.match(")")) {
+            throw new Error("괄호를 확인해 주세요");
+          }
+          return value;
+        }
+
+        return this.parseNumber();
+      }
+
+      parseNumber() {
+        const start = this.index;
+        let hasDot = false;
+
+        while (this.index < this.input.length) {
+          const char = this.input[this.index];
+          if (char === ".") {
+            if (hasDot) {
+              break;
+            }
+            hasDot = true;
+            this.index += 1;
+            continue;
+          }
+
+          if (!/[0-9]/.test(char)) {
+            break;
+          }
+
+          this.index += 1;
+        }
+
+        if (start === this.index) {
+          throw new Error("수식을 확인해 주세요");
+        }
+
+        const numberText = this.input.slice(start, this.index);
+        if (numberText === ".") {
+          throw new Error("수식을 확인해 주세요");
+        }
+
+        return Number(numberText);
+      }
+
+      match(char) {
+        if (this.input[this.index] === char) {
+          this.index += 1;
+          return true;
+        }
+        return false;
+      }
+    }
+
+    keysEl.addEventListener("click", (event) => {
+      const button = event.target.closest("button");
+      if (!button) {
+        return;
+      }
+
+      if (button.dataset.value) {
+        appendValue(button.dataset.value);
+      } else if (button.dataset.action === "clear") {
+        clearAll();
+      } else if (button.dataset.action === "backspace") {
+        backspace();
+      } else if (button.dataset.action === "calculate") {
+        calculate();
+      }
+    });
+
+    clearHistoryEl.addEventListener("click", () => {
+      history = [];
+      saveHistory();
+      renderHistory();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      const keyMap = {
+        "*": "×",
+        "/": "÷",
+        "-": "-",
+        "+": "+",
+        "(": "(",
+        ")": ")",
+        ".": "."
+      };
+
+      if (/^[0-9]$/.test(event.key)) {
+        appendValue(event.key);
+        event.preventDefault();
+      } else if (keyMap[event.key]) {
+        appendValue(keyMap[event.key]);
+        event.preventDefault();
+      } else if (event.key === "Enter") {
+        calculate();
+        event.preventDefault();
+      } else if (event.key === "Backspace") {
+        backspace();
+        event.preventDefault();
+      } else if (event.key === "Escape") {
+        clearAll();
+        event.preventDefault();
+      }
+    });
+
+    renderHistory();
+    updateDisplay();
+  </script>
+</body>
+</html>

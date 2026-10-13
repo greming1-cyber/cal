@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>계산기</title>
+<style>
+  :root {
+    --bg: #eef1f5;
+    --panel: #ffffff;
+    --screen: #1f2933;
+    --screen-text: #f5f7fa;
+    --screen-sub: #9aa5b1;
+    --key: #f5f7fa;
+    --key-hover: #e4e7eb;
+    --op: #dbe7f5;
+    --op-hover: #c6d9ef;
+    --eq: #2f6fdb;
+    --eq-hover: #2459b5;
+    --danger: #e5484d;
+    --text: #1f2933;
+    --muted: #616e7c;
+    --border: #d9dee5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .app {
+    display: flex;
+    gap: 16px;
+    width: 100%;
+    max-width: 760px;
+    flex-wrap: wrap;
+  }
+  .calc, .history {
+    background: var(--panel);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.08);
+    padding: 16px;
+  }
+  .calc { flex: 1 1 340px; }
+  .history { flex: 1 1 260px; display: flex; flex-direction: column; max-height: 560px; }
+
+  .screen {
+    background: var(--screen);
+    color: var(--screen-text);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .expr {
+    min-height: 24px;
+    font-size: 18px;
+    color: var(--screen-sub);
+    word-break: break-all;
+  }
+  .result {
+    min-height: 52px;
+    font-size: 40px;
+    font-weight: 600;
+    word-break: break-all;
+    line-height: 1.3;
+  }
+  .result.preview { color: var(--screen-sub); font-weight: 400; }
+  .result.error { color: #ff8a8e; font-size: 24px; line-height: 52px; }
+
+  .keys {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .keys button {
+    font: inherit;
+    font-size: 20px;
+    padding: 14px 0;
+    border: none;
+    border-radius: 10px;
+    background: var(--key);
+    color: var(--text);
+    cursor: pointer;
+    transition: background .1s, transform .05s;
+  }
+  .keys button:hover { background: var(--key-hover); }
+  .keys button:active, .keys button.pressed { transform: scale(.96); }
+  .keys button.op { background: var(--op); }
+  .keys button.op:hover { background: var(--op-hover); }
+  .keys button.clear { color: var(--danger); font-weight: 600; }
+  .keys button.eq { background: var(--eq); color: #fff; }
+  .keys button.eq:hover { background: var(--eq-hover); }
+  .keys button.zero { grid-column: span 2; }
+
+  .history-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .history-head h2 { font-size: 16px; margin: 0; }
+  .history-head button {
+    font: inherit;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--danger);
+    border-radius: 8px;
+    padding: 4px 10px;
+    cursor: pointer;
+  }
+  .history-head button:hover { background: #fdecec; }
+  .history ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    flex: 1;
+  }
+  .history li {
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: right;
+    border-bottom: 1px solid var(--border);
+    word-break: break-all;
+  }
+  .history li:hover { background: var(--key); }
+  .history li .h-expr { color: var(--muted); font-size: 14px; }
+  .history li .h-res { font-size: 18px; font-weight: 600; }
+  .history .empty { color: var(--muted); text-align: center; padding: 24px 0; cursor: default; border: none; }
+  .history .empty:hover { background: none; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 10px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="calc">
+    <div class="screen">
+      <div class="expr" id="expr"></div>
+      <div class="result" id="result">0</div>
+    </div>
+    <div class="keys" id="keys">
+      <button class="clear" data-key="C">C</button>
+      <button class="op" data-key="(">(</button>
+      <button class="op" data-key=")">)</button>
+      <button class="op" data-key="←">←</button>
+
+      <button data-key="7">7</button>
+      <button data-key="8">8</button>
+      <button data-key="9">9</button>
+      <button class="op" data-key="÷">÷</button>
+
+      <button data-key="4">4</button>
+      <button data-key="5">5</button>
+      <button data-key="6">6</button>
+      <button class="op" data-key="×">×</button>
+
+      <button data-key="1">1</button>
+      <button data-key="2">2</button>
+      <button data-key="3">3</button>
+      <button class="op" data-key="−">−</button>
+
+      <button class="zero" data-key="0">0</button>
+      <button data-key=".">.</button>
+      <button class="op" data-key="+">+</button>
+
+      <button class="eq" data-key="=" style="grid-column: span 4;">=</button>
+    </div>
+    <div class="hint">키보드: 숫자 · + - * / · ( ) · Enter(=) · Backspace(←) · Esc(C)</div>
+  </div>
+
+  <div class="history">
+    <div class="history-head">
+      <h2>계산 기록</h2>
+      <button id="clearHistory">기록 지우기</button>
+    </div>
+    <ul id="historyList"></ul>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var STORAGE_KEY = 'calc_claude_history';
+  var MAX_HISTORY = 100;
+  var OPS = '+−×÷';
+
+  var exprEl = document.getElementById('expr');
+  var resultEl = document.getElementById('result');
+  var listEl = document.getElementById('historyList');
+
+  var expr = '';        // 입력 중인 수식 (화면 표시용 기호 사용)
+  var justEvaluated = false;
+  var lastResult = null;
+  var history = loadHistory();
+
+  // ---------- 수식 계산 (eval 없이 직접 파싱) ----------
+  function DivZeroError() {}
+
+  function tokenize(s) {
+    var tokens = [];
+    var i = 0;
+    while (i < s.length) {
+      var c = s[i];
+      if (c === ' ') { i++; continue; }
+      if ((c >= '0' && c <= '9') || c === '.') {
+        var j = i;
+        while (j < s.length && ((s[j] >= '0' && s[j] <= '9') || s[j] === '.')) j++;
+        var numStr = s.slice(i, j);
+        if (numStr === '.' || numStr.split('.').length > 2) throw new Error('bad number');
+        tokens.push({ type: 'num', value: parseFloat(numStr) });
+        i = j;
+        continue;
+      }
+      if ('+-−*×/÷'.indexOf(c) !== -1) {
+        var op = c === '−' ? '-' : c === '×' ? '*' : c === '÷' ? '/' : c;
+        tokens.push({ type: 'op', value: op });
+        i++;
+        continue;
+      }
+      if (c === '(' || c === ')') {
+        tokens.push({ type: c });
+        i++;
+        continue;
+      }
+      throw new Error('bad char');
+    }
+    return tokens;
+  }
+
+  // 문법: expr = term (('+'|'-') term)*
+  //       term = factor (('*'|'/') factor)*
+  //       factor = ('+'|'-') factor | '(' expr ')' | number
+  function evaluate(s) {
+    var tokens = tokenize(s);
+    var pos = 0;
+
+    function peek() { return tokens[pos]; }
+
+    function parseExpr() {
+      var v = parseTerm();
+      while (peek() && peek().type === 'op' && (peek().value === '+' || peek().value === '-')) {
+        var op = tokens[pos++].value;
+        var r = parseTerm();
+        v = op === '+' ? v + r : v - r;
+      }
+      return v;
+    }
+
+    function parseTerm() {
+      var v = parseFactor();
+      while (peek() && peek().type === 'op' && (peek().value === '*' || peek().value === '/')) {
+        var op = tokens[pos++].value;
+        var r = parseFactor();
+        if (op === '*') v = v * r;
+        else {
+          if (r === 0) throw new DivZeroError();
+          v = v / r;
+        }
+      }
+      return v;
+    }
+
+    function parseFactor() {
+      var t = peek();
+      if (!t) throw new Error('unexpected end');
+      if (t.type === 'op' && (t.value === '-' || t.value === '+')) {
+        pos++;
+        var v = parseFactor();
+        return t.value === '-' ? -v : v;
+      }
+      if (t.type === '(') {
+        pos++;
+        var inner = parseExpr();
+        if (!peek() || peek().type !== ')') throw new Error('missing )');
+        pos++;
+        return inner;
+      }
+      if (t.type === 'num') {
+        pos++;
+        return t.value;
+      }
+      throw new Error('unexpected token');
+    }
+
+    if (tokens.length === 0) throw new Error('empty');
+    var result = parseExpr();
+    if (pos !== tokens.length) throw new Error('trailing tokens');
+    return result;
+  }
+
+  // 0.1+0.2 = 0.30000000000000004 같은 부동소수점 오차 정리
+  function formatNumber(n) {
+    if (!isFinite(n)) throw new Error('overflow');
+    var cleaned = parseFloat(n.toPrecision(12));
+    if (Object.is(cleaned, -0)) cleaned = 0;
+    return String(cleaned);
+  }
+
+  function closeParens(s) {
+    var open = 0;
+    for (var i = 0; i < s.length; i++) {
+      if (s[i] === '(') open++;
+      else if (s[i] === ')') open--;
+    }
+    while (open-- > 0) s += ')';
+    return s;
+  }
+
+  function tryCompute(s) {
+    try {
+      return { ok: true, value: formatNumber(evaluate(closeParens(s))) };
+    } catch (e) {
+      if (e instanceof DivZeroError) return { ok: false, error: '0으로 나눌 수 없습니다' };
+      return { ok: false, error: '수식 오류' };
+    }
+  }
+
+  // ---------- 입력 처리 ----------
+  function lastChar() { return expr.slice(-1); }
+  function isOp(c) { return OPS.indexOf(c) !== -1; }
+  function isDigit(c) { return c >= '0' && c <= '9'; }
+
+  function currentNumber() {
+    var m = expr.match(/[0-9.]*$/);
+    return m ? m[0] : '';
+  }
+
+  function input(key) {
+    if (key === 'C') { clearAll(); return; }
+    if (key === '←') { backspace(); return; }
+    if (key === '=') { equals(); return; }
+
+    if (justEvaluated) {
+      justEvaluated = false;
+      // 결과 뒤에 연산자를 누르면 결과에 이어서 계산, 그 외에는 새로 시작
+      if (isOp(key) && lastResult !== null) expr = lastResult.replace('-', '−');
+      else expr = '';
+    }
+
+    var last = lastChar();
+
+    if (isDigit(key)) {
+      if (last === ')') expr += '×';
+      // 맨 앞의 불필요한 0 방지 (예: 007)
+      if (currentNumber() === '0') expr = expr.slice(0, -1);
+      expr += key;
+    } else if (key === '.') {
+      var num = currentNumber();
+      if (num.indexOf('.') !== -1) return;
+      if (last === ')') expr += '×';
+      if (num === '') expr += '0';
+      expr += '.';
+    } else if (isOp(key)) {
+      if (expr === '' || last === '(') {
+        if (key === '−') expr += key;   // 음수 시작만 허용
+        return render();
+      }
+      if (isOp(last)) {
+        var prev = expr.slice(-2, -1);
+        if (key === '−' && (last === '×' || last === '÷')) {
+          expr += key;                    // 3×−2 같은 음수 곱셈 허용
+        } else if (prev === '(' || expr.length === 1) {
+          return render();                // "(−" 뒤에서는 연산자 교체 안 함
+        } else {
+          expr = expr.slice(0, -1);
+          if (isOp(lastChar())) expr = expr.slice(0, -1); // "×−" 를 통째로 교체
+          expr += key;
+        }
+      } else if (last === '.') {
+        expr += '0' + key;
+      } else {
+        expr += key;
+      }
+    } else if (key === '(') {
+      if (isDigit(last) || last === '.' || last === ')') expr += '×';
+      expr += '(';
+    } else if (key === ')') {
+      var open = (expr.match(/\(/g) || []).length;
+      var close = (expr.match(/\)/g) || []).length;
+      if (open > close && last !== '(' && !isOp(last)) expr += ')';
+    }
+    render();
+  }
+
+  function clearAll() {
+    expr = '';
+    justEvaluated = false;
+    lastResult = null;
+    render();
+  }
+
+  function backspace() {
+    if (justEvaluated) {
+      justEvaluated = false;
+      render();
+      return;
+    }
+    expr = expr.slice(0, -1);
+    render();
+  }
+
+  function equals() {
+    if (expr === '' || justEvaluated) return;
+    var full = closeParens(expr);
+    var r = tryCompute(full);
+    expr = full;
+    justEvaluated = true;
+    if (r.ok) {
+      lastResult = r.value;
+      addHistory(full, r.value);
+      showResult(r.value, '');
+    } else {
+      lastResult = null;
+      showResult(r.error, 'error');
+    }
+    exprEl.textContent = full + ' =';
+  }
+
+  function prettyNumber(s) {
+    return s.replace('-', '−');
+  }
+
+  function showResult(text, cls) {
+    resultEl.className = 'result' + (cls ? ' ' + cls : '');
+    resultEl.textContent = cls === 'error' ? text : prettyNumber(text);
+  }
+
+  // 입력 중에는 위쪽에 수식, 아래쪽에 미리 계산한 값을 흐리게 표시
+  function render() {
+    exprEl.textContent = expr;
+    if (expr === '') { showResult('0', ''); return; }
+    var r = tryCompute(expr);
+    if (r.ok) showResult(r.value, 'preview');
+    else if (r.error === '0으로 나눌 수 없습니다' && !isOp(lastChar())) showResult(r.error, 'error');
+    else resultEl.className = 'result preview';
+  }
+
+  // ---------- 계산 기록 ----------
+  function loadHistory() {
+    try {
+      var data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      return Array.isArray(data) ? data : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveHistory() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(history)); } catch (e) { /* 저장 불가 환경 무시 */ }
+  }
+
+  function addHistory(e, r) {
+    history.unshift({ expr: e, result: r });
+    if (history.length > MAX_HISTORY) history.length = MAX_HISTORY;
+    saveHistory();
+    renderHistory();
+  }
+
+  function renderHistory() {
+    listEl.innerHTML = '';
+    if (history.length === 0) {
+      var empty = document.createElement('li');
+      empty.className = 'empty';
+      empty.textContent = '기록이 없습니다';
+      listEl.appendChild(empty);
+      return;
+    }
+    history.forEach(function (item) {
+      var li = document.createElement('li');
+      li.title = '눌러서 수식 다시 불러오기';
+      var ex = document.createElement('div');
+      ex.className = 'h-expr';
+      ex.textContent = item.expr + ' =';
+      var rs = document.createElement('div');
+      rs.className = 'h-res';
+      rs.textContent = prettyNumber(item.result);
+      li.appendChild(ex);
+      li.appendChild(rs);
+      li.addEventListener('click', function () {
+        expr = item.expr;
+        justEvaluated = false;
+        render();
+      });
+      listEl.appendChild(li);
+    });
+  }
+
+  document.getElementById('clearHistory').addEventListener('click', function () {
+    history = [];
+    saveHistory();
+    renderHistory();
+  });
+
+  // ---------- 버튼 / 키보드 ----------
+  document.getElementById('keys').addEventListener('click', function (e) {
+    var btn = e.target.closest('button');
+    if (btn) input(btn.dataset.key);
+  });
+
+  var KEYMAP = {
+    '+': '+', '-': '−', '*': '×', '/': '÷', 'x': '×', 'X': '×',
+    '(': '(', ')': ')', '.': '.', ',': '.',
+    'Enter': '=', '=': '=', 'Backspace': '←', 'Escape': 'C', 'Delete': 'C'
+  };
+
+  document.addEventListener('keydown', function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    var key = isDigit(e.key) && e.key.length === 1 ? e.key : KEYMAP[e.key];
+    if (!key) return;
+    e.preventDefault();
+    input(key);
+    var btn = document.querySelector('.keys button[data-key="' + key + '"]');
+    if (btn) {
+      btn.classList.add('pressed');
+      setTimeout(function () { btn.classList.remove('pressed'); }, 100);
+    }
+  });
+
+  renderHistory();
+  render();
+})();
+</script>
+</body>
+</html>
