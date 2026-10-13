@@ -236,8 +236,8 @@
     <section class="calculator" aria-label="계산기">
       <h1>계산기 코덱스</h1>
       <div class="mode-selector" role="group" aria-label="계산 모드">
-        <label><input type="radio" name="mode" value="normal" checked> 일반 계산</label>
-        <label><input type="radio" name="mode" value="chain"> 연결 계산</label>
+        <label><input type="radio" name="mode" value="normal"> 일반 계산</label>
+        <label><input type="radio" name="mode" value="chain" checked> 연결 계산</label>
       </div>
       <div class="display" aria-live="polite">
         <div class="expression" id="expression"></div>
@@ -291,7 +291,7 @@
     let expression = "";
     let currentResult = "0";
     let calculated = false;
-    let chainMode = false;
+    let chainMode = true;
     let history = loadHistory();
 
     document.querySelectorAll('input[name="mode"]').forEach((input) => {
