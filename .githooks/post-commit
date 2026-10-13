@@ -1,0 +1,6 @@
+#!/bin/sh
+
+branch=$(git symbolic-ref --quiet --short HEAD) || exit 0
+if ! GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git -c credential.helper=manager push -u origin "$branch"; then
+  printf '%s\n' 'Automatic push failed. The commit is saved locally; retry git push after signing in.' >&2
+fi
